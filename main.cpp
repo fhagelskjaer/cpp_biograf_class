@@ -6,26 +6,12 @@ class Saede
 {
     public:
     int _nr;
+    int _rnr;
     Saede(){}
-    Saede(int nr)
+    Saede(int nr, int rnr)
     {
         _nr = nr;
-    }
-};
-
-class Raekke
-{
-    public:
-    int _nr;
-    std::vector<Saede> _saede;
-    Raekke(){}
-    Raekke(int nr)
-    {
-      _nr = nr;
-    }
-    void addSaede(int nr)
-    {
-       _saede.push_back(Saede(nr));
+        _rnr = rnr;
     }
 };
 
@@ -33,15 +19,15 @@ class Sal
 {
     public:
     int _nr;
-    std::vector<Raekke> _raekke;
+    std::vector<Saede> _saede;
     Sal(){}
     Sal(int nr)
     {
       _nr = nr;
     }
-    void addRaekke(int nr)
+    void addSaede(int nr, int rnr)
     {
-       _raekke.push_back(Raekke(nr));
+       _saede.push_back(Saede(nr, rnr));
     }
 };
 
@@ -62,14 +48,12 @@ class Reservation
 {
   public:
   Saede _saede;
-  Raekke _raekke;
   bool _solgt;
   std::string _kunderef;
 
-  Reservation(const Saede& saede, const Raekke& raekke, std::string kunderef)
+  Reservation(const Saede& saede, std::string kunderef)
   {
     _saede = saede;
-    _raekke = raekke;
     _kunderef = kunderef;
     _solgt = false;
   }
@@ -100,11 +84,11 @@ class Forestilling
       _pris = pris;
   }
 
-  bool addReservation(const Saede& saede, const Raekke& raekke, std::string kunderef){
+  bool addReservation(const Saede& saede, std::string kunderef){
         bool reserved = false;
         for(int k = 0; k < _reservationliste.size(); k++){
           if( _reservationliste[k]._saede._nr == saede._nr && 
-               _reservationliste[k]._raekke._nr == raekke._nr ) {
+               _reservationliste[k]._saede._rnr == saede._rnr ) {
             reserved = true;
             break;
           }
@@ -112,7 +96,7 @@ class Forestilling
         if( reserved ){
           return false;
         }
-        _reservationliste.push_back(Reservation(saede, raekke, kunderef));
+        _reservationliste.push_back(Reservation(saede, kunderef));
         return true;
   }
 
@@ -127,23 +111,25 @@ class Forestilling
     return sum;
   }
 
-  void printUnreservedSeats(){
-    for(int i = 0; i < _sal._raekke.size(); i++){
-      for(int j = 0; j < _sal._raekke[i]._saede.size(); j++){
+  std::vector<Saede> getUnreservedSeats(){
+    std::vector<Saede> tempSaedeListe;
+
+    for(int i = 0; i < _sal._saede.size(); i++){
         bool reserved = false;
         for(int k = 0; k < _reservationliste.size(); k++){
-          if( _reservationliste[k]._saede._nr == _sal._raekke[i]._saede[j]._nr && 
-              _reservationliste[k]._raekke._nr == _sal._raekke[i]._nr  ) {
+          if( _reservationliste[k]._saede._nr == _sal._saede[i]._nr && 
+              _reservationliste[k]._saede._rnr == _sal._saede[i]._rnr  ) {
             reserved = true;
             break;
           }
         }
         if( !reserved ){
-          std::cout << _sal._raekke[i]._nr << " " << _sal._raekke[i]._saede[j]._nr << std::endl;
+          tempSaedeListe.push_back(_sal._saede[i]);
+          //std::cout << _sal._raekke[i]._nr << " " << _sal._raekke[i]._saede[j]._nr << std::endl; //slemt
         }
 
         }
-      }
+      return tempSaedeListe;
   }
 
   int getTotalSales(){
@@ -173,10 +159,8 @@ class Forestilling
 
     int sumseats = 0;
 
-    for(int i = 0; i < _sal._raekke.size(); i++){
-      for(int j = 0; j < _sal._raekke[i]._saede.size(); j++){
+    for(int i = 0; i < _sal._saede.size(); i++){
         sumseats += 1;
-      }
     }
     return double(_reservationliste.size())/double(sumseats);
   }
@@ -184,7 +168,7 @@ class Forestilling
 
 };
 
-class Controller
+class Biograf
 {
 
     public:
@@ -205,12 +189,11 @@ class Controller
       }
    }
 
-   bool addSal(int nr){
+   bool addSal(int nr, int antal_raekker, int antal_saeder){
         salliste.push_back(Sal(nr));
-        for(int i = 0; i < 10; i++){
-            salliste.back().addRaekke(i);
-            for(int j = 0; j < 10; j++){
-                salliste.back()._raekke.back().addSaede(j);
+        for(int i = 0; i < antal_raekker; i++){
+            for(int j = 0; j < antal_saeder; j++){
+                salliste.back().addSaede(1+j, 1+i);
             }
         }
    
@@ -228,9 +211,8 @@ class Controller
       }
   }
 
-   bool addReservation(int forestilling_idx, int rn, int sn, std::string kunderef){  
-       return forestillingliste[forestilling_idx].addReservation(forestillingliste[forestilling_idx]._sal._raekke[rn]._saede[sn],
-                                                                  forestillingliste[forestilling_idx]._sal._raekke[rn], kunderef);
+   bool addReservation(int forestilling_idx, int sn, std::string kunderef){
+       return forestillingliste[forestilling_idx].addReservation(forestillingliste[forestilling_idx]._sal._saede[sn], kunderef);
    }
 
 
@@ -259,6 +241,13 @@ class Controller
       return double(sumreserved-sumshow)/double(sumreserved);
    }
 
+  void printUnreservedSeats(int forestilling_idx){
+    std::vector<Saede> tempSaedeListe = forestillingliste[forestilling_idx].getUnreservedSeats();
+    for(int i = 0; i < tempSaedeListe.size(); i++){
+      std::cout << "idx: " << i << " rknr " << tempSaedeListe[i]._rnr << " saedenr " << tempSaedeListe[i]._nr << std::endl;
+    }
+  }
+
    double getReserved(int forestilling_idx){
     return forestillingliste[forestilling_idx].getReserved();
    }
@@ -273,47 +262,48 @@ class Controller
 
 int main(int argc, char**argv)
 {
-  Controller c;
+  Biograf bio;
 
-  c.addSal(1);
-  c.addSal(2);
+  bio.addSal(1, 5, 5);
+  bio.addSal(2, 10, 10);
 
-  c.addFilm("diehard",10);  
-  c.addFilm("lotr",15);
-  c.addFilm("7s",40);
+  bio.addFilm("diehard",10);  
+  bio.addFilm("lotr",15);
+  bio.addFilm("7s",40);
 
-  c.getFilmList();
+  bio.getFilmList();
 
-  c.addForestilling(0, 0, 0, 15);
-  c.addForestilling(0, 1, 0, 12);
-  c.addForestilling(1, 1, 10, 20);
-  c.addForestilling(1, 1, 25, 15);
+  bio.addForestilling(0, 0, 0, 15);
+  bio.addForestilling(0, 1, 0, 12);
+  bio.addForestilling(1, 1, 10, 20);
+  bio.addForestilling(1, 1, 25, 15);
 
-  c.forestillingliste[0].printUnreservedSeats();
 
-  c.getForestilling();
+  bio.getForestilling();
+
+  bio.printUnreservedSeats(0);
 
   std::cout << "break" << std::endl;
 
-  std::cout << c.addReservation(0, 0, 0, "john") << std::endl;
-  std::cout << c.addReservation(0, 0, 1, "john") << std::endl;
-  std::cout << c.addReservation(0, 0, 2, "henrik") << std::endl;
+  std::cout << bio.addReservation(0, 0, "john") << std::endl;
+  std::cout << bio.addReservation(0, 1, "john") << std::endl;
+  std::cout << bio.addReservation(0, 2, "henrik") << std::endl;
+  std::cout << bio.addReservation(0, 3, "bettina") << std::endl;
+  std::cout << bio.addReservation(0, 4, "bettina") << std::endl;
 
-  std::cout << c.addReservation(0, 0, 3, "bettina") << std::endl;
-  std::cout << c.addReservation(0, 0, 4, "bettina") << std::endl;
-
-  std::cout << c.addReservation(0, 0, 4, "bettina") << std::endl;
-  std::cout << c.addReservation(0, 1, 4, "bettina") << std::endl;
-  std::cout << c.addReservation(0, 1, 4, "bettina") << std::endl;
-
-  c.forestillingliste[0].printUnreservedSeats();
+  std::cout << bio.addReservation(0, 4, "bettina") << std::endl;
+  std::cout << bio.addReservation(0, 4, "bettina") << std::endl;
   
-  std::cout << "billetpris " << c.betalBillet(0, "bettina") << std::endl;
-  std::cout << "billetpris " << c.betalBillet(0, "bettina") << std::endl;
+  std::cout << bio.addReservation(0, 5, "bettina") << std::endl;
 
-  std::cout << "forestillingIndkomst " << c.forestillingIndkomst(0) << std::endl;
-  std::cout << "udregnSamletNoshows " << c.udregnSamletNoshows() << std::endl;
-  std::cout << "getReserved " << c.getReserved(0) << std::endl;
+  bio.printUnreservedSeats(0);
+
+  std::cout << "billetpris " << bio.betalBillet(0, "bettina") << std::endl;
+  std::cout << "billetpris " << bio.betalBillet(0, "bettina") << std::endl;
+
+  std::cout << "forestillingIndkomst " << bio.forestillingIndkomst(0) << std::endl;
+  std::cout << "udregnSamletNoshows " << bio.udregnSamletNoshows() << std::endl;
+  std::cout << "getReserved " << bio.getReserved(0) << std::endl;
 
 
   return 0;
